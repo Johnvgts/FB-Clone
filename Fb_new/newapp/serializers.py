@@ -50,3 +50,14 @@ class FriendsShowrSerializer(serializers.Serializer):
             "profileimg": profile.profileimg.url,
             "country": profile.country,
         } 
+
+
+class MessageSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Message
+        fields = ('sender', 'receiver', 'content')
+
+    def create(self, validated_data):
+        message = Message.objects.create(**validated_data)
+        return message
