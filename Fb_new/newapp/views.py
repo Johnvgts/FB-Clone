@@ -1,6 +1,8 @@
 from django.shortcuts import render
 from .serializers import *
-from rest_framework import generics, status
+from rest_framework import generics, permissions
+from rest_framework.generics import RetrieveAPIView,ListAPIView
+from django.shortcuts import get_object_or_404
 from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.response import Response
 from django.http import JsonResponse
@@ -10,50 +12,61 @@ from django.contrib.auth import get_user_model
 
 class UserCreateAPIView(generics.CreateAPIView):
     queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = (AllowAny,)
+    serializer_class = ProfileSerializer
+    permission_classes = (permissions.AllowAny,)
 
 
 class UserRetrieveAPIView(generics.RetrieveAPIView):
     queryset = User.objects.all()
-    serializer_class = UserSerializer
+    serializer_class = ProfileSerializer
     lookup_field = 'id'
 
 
-class FriendsSearchListAPIView(generics.ListAPIView):
-    serializer_class = UserSerializer
+class FriendListCreateAPIView(generics.ListCreateAPIView):
+    serializer_class = FriendSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
     def get_queryset(self):
-            queryset = User.objects.all()
-            if search := self.request.query_params.get('search', False):
-                queryset = queryset.filter(username__icontains=search)
-            return queryset
-    
+        return Friend.objects.filter(user=self.request.user)
 
 class MessageListCreateView(generics.ListCreateAPIView):
-    queryset = Message.objects.all()
     serializer_class = MessageSerializer
+    permission_classes = (permissions.IsAuthenticated,)
 
-    # def create(self, request, *args, **kwargs):
-    #     sender = request.user
-    #     receiver_id = request.data.get('receiver_id', None)
+    def get_queryset(self):
+        receiver_id = self.kwargs['id']
+        receiver = get_object_or_404(User, id=receiver_id)
+        return Message.objects.filter(sender=self.request.user, receiver=receiver)
 
-    #     if not receiver_id:
-    #         return Response({'error': 'receiver_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    def perform_create(self, serializer):
+        receiver_id = self.kwargs['id']
+        receiver = get_object_or_404(User, id=receiver_id)
+        serializer.save(sender=self.request.user, receiver=receiver)
 
-    #     try:
-    #         receiver = User.objects.get(pk=receiver_id)
-    #     except User.DoesNotExist:
-    #         return Response({'error': 'Receiver not found.'}, status=status.HTTP_404_NOT_FOUND)
+class UserSearchListAPIView(generics.ListAPIView):
+    serializer_class = ProfileSerializer
+    permission_classes = (permissions.IsAuthenticated,)
 
-    #     message_data = {
-    #         'sender': sender.id,
-    #         'receiver': receiver_id,
-    #         'content': request.data.get('content', '')
-    #     }
-    #     serializer = MessageSerializer(data=message_data)
+    def get_queryset(self):
+        queryset = User.objects.all()
+        if search := self.request.query_params.get('search', None):
+            queryset = queryset.filter(username__icontains=search)
+        return queryset
+    
 
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response(serializer.data, status=status.HTTP_201_CREATED)
+class FriendSearchByIDAPIView(generics.ListAPIView):
+    serializer_class = FriendSerializer
+    permission_classes = (permissions.IsAuthenticated,)
 
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def get_queryset(self):
+        user_id = self.kwargs['id']
+        return Friend.objects.filter(user=self.request.user, friend_id=user_id)
+
+class MessageSearchByIDAPIView(generics.ListAPIView):
+    serializer_class = MessageSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_queryset(self):
+        receiver_id = self.kwargs['id']
+        receiver = get_object_or_404(User, id=receiver_id)
+        return Message.objects.filter(sender=self.request.user, receiver=receiver)

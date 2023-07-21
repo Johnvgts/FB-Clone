@@ -14,11 +14,9 @@ class Profile(models.Model):
     def __str__(self):
         return self.user.username   
     
-
-class Friends(models.Model):
-    from_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friends_user')
-    friends = models.ManyToManyField(User)
-
+class Friend(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friends')
+    friend = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friend_of')
 
 class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
